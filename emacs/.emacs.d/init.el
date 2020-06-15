@@ -18,6 +18,11 @@
 (winner-mode t)
 
 (setq mac-command-modifier 'meta)
+(setq mac-option-modifier 'alt)
+(setq mac-control-modifier 'control)
+(setq ns-function-modifier 'hyper)
+
+
 
 (set-frame-parameter (selected-frame) 'alpha '(85 . 50))
 (global-hl-line-mode t) ; high-light current line
@@ -519,21 +524,19 @@
 ;;   :straight (:host github :repo "whily/lsp-kotlin"))
 
 
-
 ;; ========= Key maps ===========
-;; option + shift hjkl
-(global-set-key (kbd "C-Ó") 'windmove-left)
-(global-set-key (kbd "C-Ô") 'windmove-down)
-(global-set-key (kbd "C-") 'windmove-up)
-(global-set-key (kbd "C-Ò") 'windmove-right)
+(global-set-key (kbd "C-A-h") 'windmove-left)
+(global-set-key (kbd "C-A-j") 'windmove-down)
+(global-set-key (kbd "C-A-k") 'windmove-up)
+(global-set-key (kbd "C-A-l") 'windmove-right)
 (defun my/split-windmove-right ()
   "Vsplit window and move right."
   (interactive)
   (split-window-right)
   (windmove-right))
-(global-set-key (kbd "C-∏") 'my/split-windmove-right)
-(global-set-key (kbd "C-Ø") 'delete-other-windows)
-(global-set-key (kbd "C-¨") 'delete-window)
+(global-set-key (kbd "C-A-p") 'my/split-windmove-right)
+(global-set-key (kbd "C-A-o") 'delete-other-windows)
+(global-set-key (kbd "C-A-u") 'delete-window)
 (global-set-key (kbd "M-k") 'kill-this-buffer)
 (defun counsel-recentf-other ()
   "Find a file on `recentf-list'."
@@ -616,21 +619,33 @@ When INITIAL-INPUT is non-nil, use it in the minibuffer during completion."
 (defvar newline-and-indent t
   "Modify the behavior of the open-*-line functions to cause them to autoindent.")
 
+;; ========= Fonts ==========
+;;; CamingoCode + Ricty Diminished
+;;;   下記のようなサイズの組み合わせだと全角文字と半角文字のバランスがよい.
+;;;   他の組み合わせだとズレるので注意.
+;;;     + CamingoCode:size=13, Ricty Diminished:size=14
+;;;     + CamingoCode:size=15, Ricty Diminished:size=16
+;;;     + CamingoCode:size=17, Ricty Diminished:size=18
+;;; http://boiled-mag.hatenablog.jp/entry/2018/05/22/192536
+(create-fontset-from-ascii-font "CamingoCode:size=15:weight=normal:slant=normal"
+                                nil
+                                "CamingoCode_Cica")
+(set-fontset-font "fontset-CamingoCode_Cica"
+                  'unicode
+                  (font-spec :family "Cica" :size 16) nil  'append)
+;;; 上記で作成したフォントセットをデフォルトに設定する.
+(add-to-list 'default-frame-alist '(font . "fontset-CamingoCode_Cica"))
 
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(default ((t (:family "Cica" :foundry "nil" :slant normal :weight normal :height 171 :width normal))))
- '(doom-modeline-bar ((t (:background "#6272a4"))))
- '(mode-line ((t (:background "light slate gray" :foreground "black" :box (:line-width -1 :style released-button))))))
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
+;; ======= Themes ======
+;; (load-theme 'tsdh-dark t)
+(use-package color-theme-sanityinc-tomorrow
+  :straight t )
+
+;; (load-theme 'sanityinc-tomorrow-bright t)
+;; (load-theme 'sanityinc-tomorrow-night t)
+;; (load-theme 'sanityinc-tomorrow-eighties t)
+(load-theme 'sanityinc-tomorrow-blue t)
+;; (load-theme 'sanityinc-tomorrow-day t)
 
 ;; see https://emacs.stackexchange.com/questions/19506/suppress-warning-assignment-to-free-variable-and-others
 ;; Local Variables:
