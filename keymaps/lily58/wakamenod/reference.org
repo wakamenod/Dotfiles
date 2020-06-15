@@ -1,0 +1,4 @@
+#+TITLE: QMK Reference
+
+- [[https://qiita.com/uodna/items/6d23581d26c1adb23377][Ergodox(qmk firmware)の同時押し/レイヤー切替の設定メモ]]
+- [[https://leico.github.io/TechnicalNote/QMK/key-customize][QMK : キーマップのカスタマイズ]]
