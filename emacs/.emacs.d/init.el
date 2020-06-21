@@ -33,13 +33,6 @@
 (let ((gls "/usr/local/bin/gls"))
   (if (file-exists-p gls) (setq insert-directory-program gls)))
 
-;; ======== scroll =========
-;; (use-package smooth-scrolling
-;;   :config
-;;   (smooth-scrolling-mode t))
-(setq mouse-wheel-scroll-amount '(1)
-      mouse-wheel-progressive-speed nil
-      scroll-conservatively 101)
 
 ;; ======= straight.el (package-manager) ======
 (eval-and-compile
@@ -58,6 +51,28 @@
   (straight-use-package 'use-package))
 ; 以下が効けば:straight tは不要のはずだが上手くいかない時がある
 ; (setq straight-use-package-by-defaul t)
+
+;; ======== scroll =========
+(use-package smooth-scroll
+  :straight t
+  :config
+  (smooth-scroll-mode t)
+  ;; 縦方向のスクロール行数を変更する。
+  (setq smooth-scroll/vscroll-step-size 6)
+  ;; 横方向のスクロール行数を変更する。
+  (setq smooth-scroll/hscroll-step-size 6))
+
+;; (setq scroll-preserve-screen-position t)
+(setq scroll-preserve-screen-position 'always)
+;; https://with-emacs.com/posts/ui-hacks/keep-scrollin-scrollin-scrollin/
+(autoload 'View-scroll-half-page-forward "view")
+(autoload 'View-scroll-half-page-backward "view")
+(global-set-key (kbd "C-v") 'View-scroll-half-page-forward)
+(global-set-key (kbd "M-v") 'View-scroll-half-page-backward)
+
+;; (setq  mouse-wheel-scroll-amount '(1)
+;;       mouse-wheel-progressive-speed nil
+;;       scroll-conservatively 101)
 
 ;; ========= LSP ==========
 (setq read-process-output-max (* 1024 1024))
@@ -107,7 +122,11 @@
   :config
   (setq lsp-ui-peek-list-width 60
         lsp-ui-peek-fontify 'always))
-        
+
+(use-package company-lsp
+  :straight t
+  :commands company-lsp)
+
 
 ;; TODO remove this workaround func once elogt's issues are resolved
 ;; https://github.com/hlissner/doom-emacs/issues/3269
@@ -124,10 +143,26 @@
    (add-to-list 'eglot-server-programs '(dart-mode . ("danal")))
    (setq eglot-sync-connect 1)
    (setq eglot-ignored-server-capabilites '(:documentHighlightProvider))
+   (add-to-list 'eglot-server-programs '(go-mode . ("gopls")))
   :hook
   ((c-mode . eglot-ensure)
    ;; (dart-mode . eglot-ensure)
+   (go-mode . eglot-ensure)
    (kotlin-mode . eglot-ensure)))
+
+
+;; ========= Golang =========
+;; (let ((envs '("GOROOT" "GOPATH")))
+;;   (exec-path-from-shell-copy-envs envs))
+(use-package go-mode
+  :straight t
+  :commands go-mode
+  :config
+  (setq gofmt-command "goimports")
+  (add-hook 'before-save-hook 'gofmt-before-save))
+;; (setenv "GOPATH"
+;;         (concat))
+
 
 ;; ========= Ivy ===========
 (use-package ivy
@@ -137,6 +172,9 @@
   :custom
   (ivy-use-virtual-buffer t)
   :config
+  ;; mac-change-language-to-usを使うには日本語対応用のpatchを当ててビルドする必要がある
+  ;; https://qiita.com/takaxp/items/e07bb286d80fa9dd8e05
+  ; (add-hook 'minibuffer-setup-hook #'mac-change-language-to-us)
   (use-package ivy-hydra
     :straight t
     :defer t)
@@ -187,9 +225,13 @@
                               (counsel-rg . ytn-ivy-migemo-re-builder)
                               (swiper . ytn-ivy-migemo-re-builder)))
 (add-hook 'dired-mode-hook
-	  (lambda ()
-	    (define-key dired-mode-map (kbd "M-s") 'counsel-rg)))
+          (lambda ()
+            (define-key dired-mode-map (kbd "M-s") 'counsel-rg)))
 
+(use-package find-file-in-project
+  :straight t
+  :config
+  (global-set-key (kbd "C-M-f") 'find-file-in-project))
 
 (use-package counsel
   :straight t
@@ -207,9 +249,32 @@
   :straight t
   :init (ivy-rich-mode 1))
 
-(use-package prescient :straight t)
+(use-package prescient
+  :straight t
+  :config
+  ;; ivy インターフェイスでコマンドを実行するたびに，キャッシュをファイル保存
+  (setq prescient-aggressive-file-save t)
+    ;; ファイルの保存先
+  (setq prescient-save-file
+        (expand-file-name "~/.emacs.d/prescient-save.el"))
+    ;; アクティベート
+  (prescient-persist-mode 1))
 (use-package ivy-prescient :straight t)
-(use-package company-prescient :straight t)
+(use-package company-prescient
+  :straight t
+  :config
+    ;; コマンドを追加
+  (dolist (command '(counsel-world-clock ;; Merged!
+                     counsel-app)) ;; add :caller
+    (add-to-list 'ivy-prescient-sort-commands command))
+    ;; フィルタの影響範囲を限定する．以下の3つは順番が重要．
+  ;; (1) マイナーモードの有効化
+  (ivy-prescient-mode 1)
+  ;; (2) =counsel-M-x= をイニシャル入力対応にする
+  (setf (alist-get 'counsel-M-x ivy-re-builders-alist)
+        #'ivy-prescient-re-builder)
+  ;; (3) デフォルトのイニシャル入力を上書きする
+  (setf (alist-get t ivy-re-builders-alist) #'ivy--regex-ignore-order))
 (use-package selectrum-prescient :straight t)
 
 ;; (use-package ivy-posframe
@@ -244,6 +309,10 @@
   :ensure nil
   :hook (after-init . recentf-mode)
   :bind ("C-x C-r" . counsel-recentf)
+  :config
+  (setq recentf-filename-handlers
+        '(substring-no-properties    ; strip out lingering text properties
+          abbreviate-file-name))      ; replace $HOME with ~
   :custom
   (recentf-save-file "~/.emacs.d/.recentf")
   (recentf-auto-cleanup 'never)  ;; 存在しないファイルは消さない
@@ -342,11 +411,12 @@
 ;; ======== Shell ===========
 (use-package popwin
   :straight t
-  :defer t
-  :commands (popwin-mode)
   :config
-  (setq popwin:special-display-config
-        '(("*Completions*" :noselect t :height 0.4))))
+  (popwin-mode t)
+  ;; (setq display-buffer-alist 'popwin:display-buffer)
+  (push '("*Completions*" :noselect t :height 0.4) popwin:special-display-config)
+  (push '("*compilation*" :noselect t :height 0.4) popwin:special-display-config)
+  )
 
 (use-package shell-pop
   :straight t
@@ -436,21 +506,16 @@
 
 
 ;; ======== Others ========
-(use-package spotify
-  :straight (:host github :repo "danielfm/spotify.el")
+(use-package expand-region
+  :straight t
+  :defer t
+  ;; :bind
+  ;; (("C-=" . er/expand-region))
   :config
-  ;; (setq counsel-spotify-client-secret "9e4fa4b354894875878b9b0e497083f7")
-  ;; (setq counsel-spotify-client-id "bd53c5e86a6746c08b8649bb1ac2735a")
-  ;; (setq counsel-spotify-service-name "spotifyd")
-  ;; (setq counsel-spotify-use-system-bus-p t))
-  (setq spotify-oauth2-client-secret "9e4fa4b354894875878b9b0e497083f7>")
-  (setq spotify-oauth2-client-id "bd53c5e86a6746c08b8649bb1ac2735a")
-  (setq spotify-transport 'connect)
-  (define-key spotify-mode-map (kbd "C-c .") 'spotify-command-map))
-
-
-
-
+  (define-key region-bindings-mode-map (kbd "+") 'er/expand-regione)
+  (define-key region-bindings-mode-map (kbd "-") 'er/contract-regione)
+  :commands
+  (er/expand-region er/contract-region))
 
 ;; https://tottoto.net/emacs-first-settings/
 (use-package exec-path-from-shell
@@ -509,19 +574,23 @@
 
 (use-package lsp-mode
   :straight t
+  :custom
+  (lsp-enable-file-watchers nil)
   :config
    (setq lsp-ui-doc-enable nil)
    :init (add-to-list 'company-backends 'company-capf)
    :commands lsp
   )
-(use-package lsp-dart 
-  :straight t 
+(use-package lsp-dart
+  :straight t
   :hook (dart-mode . lsp))
 
  (use-package kotlin-mode
    :straight t)
 ;; (use-package lsp-kotlin
 ;;   :straight (:host github :repo "whily/lsp-kotlin"))
+
+
 
 
 ;; ========= Key maps ===========
@@ -572,10 +641,67 @@ When INITIAL-INPUT is non-nil, use it in the minibuffer during completion."
 ;; my/macro is recorded macro. see how to record: https://kb.iu.edu/d/aaxw
 ;; what this macros does is M-w w, which is easy-kill's save word at point
 (global-set-key (kbd "M-d") (fset 'my/macro "\367w"))
-(global-set-key (kbd "M-l") (fset 'my/kbd-macro-yyp "\C-a\367\C-y"))
+(global-set-key (kbd "M-n") (fset 'my/kbd-macro-yyp "\C-a\367\C-y"))
 (global-set-key (kbd "C-M-d") (fset 'my/kbd-macro-viw "\200w"))
 (global-set-key (kbd "M-c") (fset 'my/kbd-macro-ciw "\367w\C-w"))
+(global-set-key (kbd "C-M-y") (fset 'my/kbd-macro-newline-yank (kmacro-lambda-form [?\C-o ?\C-y backspace] 0 "%d")))
 
+(global-set-key (kbd "C-M-s") 'counsel-rg)
+(global-set-key (kbd "M-l") 'indent-region)
+(global-set-key (kbd "C-x =") 'balance-windows)
+(global-set-key (kbd "C-x +") 'text-scale-increase)
+
+;; ======= anzu =========
+(use-package anzu
+  :defer t
+  :straight t
+  :bind
+  (("M-r" . anzu-query-replace)
+   ("C-M-r" . anzu-query-replace-regexp))
+  :custom
+  (anzu-mode-lighter "")
+  (anzu-search-threshold 1000)
+  (anzu-replace-to-string-separator " => ")
+  :commands (anzu-mode anzu-query-replace anzu-query-replace-regexp)
+  :hook
+  (after-init . global-anzu-mode))
+
+
+;; ======= on region =========
+;; http://blog.fujimisakari.com/elisp_useful_for_programming/
+(defun region-to-single-quote ()
+  (interactive)
+  (quote-formater "'%s'" "^\\(\"\\).*" ".*\\(\"\\)$"))
+
+(defun region-to-double-quote ()
+  (interactive)
+  (quote-formater "\"%s\"" "^\\('\\).*" ".*\\('\\)$"))
+
+(defun region-to-bracket ()
+  (interactive)
+  (quote-formater "\(%s\)" "^\\(\\[\\).*" ".*\\(\\]\\)$"))
+
+(defun region-to-square-bracket ()
+  (interactive)
+  (quote-formater "\[%s\]" "^\\(\(\\).*" ".*\\(\)\\)$"))
+
+(defun quote-formater (quote-format re-prefix re-suffix)
+  (if mark-active
+      (let* ((region-text (buffer-substring-no-properties (region-beginning) (region-end)))
+             (replace-func (lambda (re target-text)(replace-regexp-in-string re "" target-text nil nil 1)))
+             (text (funcall replace-func re-suffix (funcall replace-func re-prefix region-text))))
+        (delete-region (region-beginning) (region-end))
+        (insert (format quote-format text)))
+    (error "Not Region selection")))
+
+(use-package region-bindings-mode
+  :straight t
+  :config
+  (region-bindings-mode-enable)
+  (define-key region-bindings-mode-map (kbd "M-4") 'region-to-single-quote)
+  (define-key region-bindings-mode-map (kbd "M-2") 'region-to-double-quote)
+  (define-key region-bindings-mode-map (kbd "M-9") 'region-to-bracket)
+  (define-key region-bindings-mode-map (kbd "M-i") 'region-to-square-bracket))
 
 ;; ======= Stolen from DOOM ========
 ;; Create missing directories when we open a file that doesn't exist under a
@@ -619,6 +745,32 @@ When INITIAL-INPUT is non-nil, use it in the minibuffer during completion."
 (defvar newline-and-indent t
   "Modify the behavior of the open-*-line functions to cause them to autoindent.")
 
+;; yank時にindentする
+(defun yank-and-indent ()
+  "Yank and then indent the newly formed region according to mode."
+  (interactive)
+  (yank)
+  (call-interactively 'indent-region))
+(global-set-key (kbd "C-y") 'yank-and-indent)
+
+
+;; ========= Makefile =======
+(setq compilation-scroll-output t)
+
+;; ========= Projectile =======
+(use-package projectile
+  :straight t
+  :config
+  (global-set-key (kbd "C-c m") 'projectile-compile-project))
+
+;; ======== Html ========
+(use-package web-mode
+  :straight t
+  :config
+  (setq web-mode-enable-auto-indentation nil)
+  (add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode)))
+
+
 ;; ========= Fonts ==========
 ;;; CamingoCode + Ricty Diminished
 ;;;   下記のようなサイズの組み合わせだと全角文字と半角文字のバランスがよい.
@@ -644,8 +796,149 @@ When INITIAL-INPUT is non-nil, use it in the minibuffer during completion."
 ;; (load-theme 'sanityinc-tomorrow-bright t)
 ;; (load-theme 'sanityinc-tomorrow-night t)
 ;; (load-theme 'sanityinc-tomorrow-eighties t)
-(load-theme 'sanityinc-tomorrow-blue t)
+;; (load-theme 'sanityinc-tomorrow-blue t)
 ;; (load-theme 'sanityinc-tomorrow-day t)
+
+;; (use-package immaterial-theme
+;;   :straight t
+;;   :config
+;;     (load-theme 'immaterial-dark t))
+
+;; (use-package cyberpunk-2019-theme
+;;   :straight t
+;;   :config
+;;     (load-theme 'cyberpunk-2019 t))
+
+(use-package cyberpunk-theme
+  :straight t
+  :config
+    (load-theme 'cyberpunk t))
+
+;; (use-package hc-zenburn-theme
+;;   :straight t
+;;   :config
+;;   (load-theme 'hc-zenburn t))
+
+;; ========= White Space ==========
+;; https://qiita.com/itiut@github/items/4d74da2412a29ef59c3a
+(setq whitespace-style '(face           ; faceで可視化
+                         trailing       ; 行末
+                         tabs           ; タブ
+                         spaces         ; スペース
+                         empty          ; 先頭/末尾の空行
+                         space-mark     ; 表示のマッピング
+                         tab-mark
+                         ))
+
+(setq whitespace-display-mappings
+      '((space-mark ?\u3000 [?\u25a1])
+        ;; WARNING: the mapping below has a problem.
+        ;; When a TAB occupies exactly one column, it will display the
+        ;; character ?\xBB at that column followed by a TAB which goes to
+        ;; the next TAB column.
+        ;; If this is a problem for you, please, comment the line below.
+        (tab-mark ?\t [?\u00BB ?\t] [?\\ ?\t])))
+
+;; スペースは全角のみを可視化
+(setq whitespace-space-regexp "\\(\u3000+\\)")
+
+;; 保存前に自動でクリーンアップ
+;; (setq whitespace-action '(auto-cleanup))
+
+(global-whitespace-mode 1)
+
+(defvar my/bg-color "#232323")
+(set-face-attribute 'whitespace-trailing nil
+                    :background my/bg-color
+                    :foreground "DeepPink"
+                    :underline t)
+(set-face-attribute 'whitespace-tab nil
+                    :background my/bg-color
+                    :foreground "LightSkyBlue"
+                    :underline t)
+(set-face-attribute 'whitespace-space nil
+                    :background my/bg-color
+                    :foreground "GreenYellow"
+                    :weight 'bold)
+(set-face-attribute 'whitespace-empty nil
+                    :background my/bg-color)
+
+;; ========= Org ===========
+(setq org-hide-emphasis-markers t)
+
+;; ========= SQL ==========
+(use-package sql
+  :defer t
+  :hook
+  (sql-mode . (lambda ()
+                (add-hook 'before-save-hook 'delete-trailing-whitespace)))
+  :commands
+  (sql-mode)
+  :mode
+  ("\\.sql$" . sql-mode)
+  :custom
+  (sql-indent-offset 2)
+  (indent-tabs-mode nil)
+  (tab-width 2)
+  (c-basic-offset 2)
+  (sql-postgre-options '("--prompt=postgres> "))
+  :config
+  (use-package sql-indent
+    :ensure t))
+
+(use-package ejc-sql :straight t)
+
+;; ====== Tab ========
+;; https://qiita.com/ballforest/items/ed2ffc8cb2c474a82b91
+(defun my-iflipb-buffer-list ()
+  "Returns list of buffers whose major-mode is the same as current buffer's one."
+  (let ((cur-buf-list (buffer-list (selected-frame)))
+        (same-major-mode-buflist nil)
+        (currbuf-major-mode
+         (buffer-local-value 'major-mode (current-buffer))))
+     (dolist (buffer cur-buf-list)
+      (if (eq (buffer-local-value 'major-mode buffer) currbuf-major-mode)
+          (add-to-list 'same-major-mode-buflist buffer)))
+     (nreverse same-major-mode-buflist)))
+(use-package iflipb
+  :straight t
+  :config
+  (setq iflipb-wrap-around t)
+  (setq iflipb-ignore-buffers (list "^[*]"))
+  (global-set-key (kbd "A-C->") 'iflipb-next-buffer)
+  (global-set-key (kbd "A-C-<") 'iflipb-previous-buffer)
+  (setq iflipb-buffer-list-function 'my-iflipb-buffer-list))
+
+
+
+;; ====== Java ========
+(use-package lsp-java
+  :straight t
+  :config (add-hook 'java-mode-hook 'lsp))
+
+
+;; ====== Dashboard ====
+;; (use-package dashboard
+;;   :defer t
+;;   :straight t
+;;   :delight
+;;   :custom-face
+;;   (dashboard-text-banner ((t (:foreground "#feff8f" :weight bold))))
+;;   :custom
+;;   (dashboard-center-content t)
+;;   (dashboard-startup-banner 4)
+;;   (dashboard-items '((recents . 15)
+;;                      (projects . 5)
+;;                      (bookmarks . 5)))
+;;   (dashboard-set-heading-icons t)
+;;   (dashboard-set-file-icons t)
+;;   :hook
+;;   (after-init . dashboard-setup-startup-hook))
+  ;; :config
+  ;; (defun my-banner-path (&rest _)
+  ;;   "Return the full path to banner."
+  ;;   (expand-file-name "banner.txt" user-emacs-directory))
+  ;; (advice-add #'dashboard-get-banner-path :override #'my-banner-path))
 
 ;; see https://emacs.stackexchange.com/questions/19506/suppress-warning-assignment-to-free-variable-and-others
 ;; Local Variables:
