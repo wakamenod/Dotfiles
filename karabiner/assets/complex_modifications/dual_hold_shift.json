@@ -1,0 +1,70 @@
+{
+
+    "title": "複数キー同時押しで装飾キー",
+
+    "rules": [
+        {
+            "description": "D,Fの同時押しでShift",
+
+            "manipulators": [
+
+                {
+
+                    "type": "basic",
+
+                    "from": {
+
+                        "simultaneous": [
+
+                            { "key_code": "f" },
+
+                            { "key_code": "d" }
+
+                        ]
+
+                    },
+
+                    "to": [
+
+                        { "key_code": "left_shift" }
+
+                    ]
+
+                }
+
+            ]
+        },
+        {
+            "description": "J,Kの同時押しでShift",
+
+            "manipulators": [
+
+                {
+
+                    "type": "basic",
+
+                    "from": {
+
+                        "simultaneous": [
+
+                            { "key_code": "j" },
+
+                            { "key_code": "k" }
+
+                        ]
+
+                    },
+
+                    "to": [
+
+                        { "key_code": "right_shift" }
+
+                    ]
+
+                }
+
+            ]
+        }
+    ]
+
+}
